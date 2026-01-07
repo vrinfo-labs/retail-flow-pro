@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PrinterStatus } from "@/components/pdv/PrinterStatus";
 import {
   Store,
   Printer,
@@ -10,7 +11,6 @@ import {
   CreditCard,
   Shield,
   Database,
-  Palette,
 } from "lucide-react";
 
 const configSections = [
@@ -171,19 +171,8 @@ export default function Configuracoes() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                <div>
-                  <p className="font-medium text-foreground">
-                    Impressora Padrão
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Impressora térmica ESC/POS conectada via USB
-                  </p>
-                </div>
-                <Button variant="outline" size="sm">
-                  Configurar
-                </Button>
-              </div>
+              {/* Printer Connection Status */}
+              <PrinterStatus />
 
               <div className="flex items-center justify-between">
                 <div>
@@ -205,6 +194,18 @@ export default function Configuracoes() {
                   </p>
                 </div>
                 <Switch />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">
+                    Abrir gaveta ao finalizar
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Abrir gaveta de dinheiro automaticamente
+                  </p>
+                </div>
+                <Switch defaultChecked />
               </div>
             </div>
           </div>

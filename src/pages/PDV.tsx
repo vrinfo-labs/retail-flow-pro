@@ -12,7 +12,20 @@ import {
   QrCode,
   User,
   ShoppingCart,
+  Printer,
+  Check,
 } from "lucide-react";
+import { PrinterStatus } from "@/components/pdv/PrinterStatus";
+import { ReceiptPreview } from "@/components/pdv/ReceiptPreview";
+import { useThermalPrinter } from "@/hooks/useThermalPrinter";
+import { ReceiptData } from "@/services/thermalPrinter";
+import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface CartItem {
   id: number;
@@ -30,9 +43,24 @@ const sampleProducts = [
   { id: 6, name: "Leite Integral 1L", price: 5.9, code: "7891234567895" },
 ];
 
+const companyInfo = {
+  name: "MINHA LOJA LTDA",
+  cnpj: "12.345.678/0001-90",
+  address: "Rua das Flores, 123 - Centro - Sao Paulo, SP",
+  phone: "(11) 3333-4444",
+};
+
 export default function PDV() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [saleComplete, setSaleComplete] = useState(false);
+  const [currentReceipt, setCurrentReceipt] = useState<ReceiptData | null>(null);
+
+  const { isConnected, isPrinting, printReceipt } = useThermalPrinter();
 
   const addToCart = (product: (typeof sampleProducts)[0]) => {
     setCart((prev) => {
@@ -76,14 +104,77 @@ export default function PDV() {
       p.code.includes(searchTerm)
   );
 
+  const handlePaymentSelect = (method: string) => {
+    setSelectedPayment(method);
+    setAmountPaid(total.toFixed(2));
+  };
+
+  const handleFinalizeSale = () => {
+    if (!selectedPayment) return;
+
+    const paid = parseFloat(amountPaid) || 0;
+    if (paid < total) {
+      toast({
+        title: "Valor insuficiente",
+        description: "O valor pago é menor que o total",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const receipt: ReceiptData = {
+      company: companyInfo,
+      items: cart.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      subtotal,
+      discount: 0,
+      total,
+      paymentMethod: selectedPayment,
+      amountPaid: paid,
+      change: paid - total,
+      cashier: "Caixa 01",
+      operator: "Maria Silva",
+      saleNumber: Math.floor(Math.random() * 100000),
+      date: new Date(),
+    };
+
+    setCurrentReceipt(receipt);
+    setSaleComplete(true);
+    setShowPaymentDialog(false);
+    setShowReceipt(true);
+  };
+
+  const handlePrint = async () => {
+    if (currentReceipt) {
+      const success = await printReceipt(currentReceipt);
+      if (success) {
+        handleNewSale();
+      }
+    }
+  };
+
+  const handleNewSale = () => {
+    setCart([]);
+    setSelectedPayment(null);
+    setAmountPaid("");
+    setSaleComplete(false);
+    setShowReceipt(false);
+    setCurrentReceipt(null);
+  };
+
+  const change = (parseFloat(amountPaid) || 0) - total;
+
   return (
     <MainLayout title="PDV" subtitle="Ponto de Venda">
       <div className="grid lg:grid-cols-3 gap-6 h-[calc(100vh-140px)]">
         {/* Products Section */}
         <div className="lg:col-span-2 flex flex-col bg-card rounded-xl border border-border/50 shadow-card overflow-hidden">
-          {/* Search */}
-          <div className="p-4 border-b border-border">
-            <div className="relative">
+          {/* Search and Printer Status */}
+          <div className="p-4 border-b border-border flex gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome ou código de barras..."
@@ -92,6 +183,7 @@ export default function PDV() {
                 className="pl-9"
               />
             </div>
+            <PrinterStatus compact />
           </div>
 
           {/* Products Grid */}
@@ -208,32 +300,130 @@ export default function PDV() {
               </div>
             </div>
 
-            {/* Payment Buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" className="flex-col h-auto py-3" disabled={cart.length === 0}>
-                <Banknote className="h-5 w-5 mb-1" />
-                <span className="text-xs">Dinheiro</span>
-              </Button>
-              <Button variant="outline" className="flex-col h-auto py-3" disabled={cart.length === 0}>
-                <CreditCard className="h-5 w-5 mb-1" />
-                <span className="text-xs">Cartão</span>
-              </Button>
-              <Button variant="outline" className="flex-col h-auto py-3" disabled={cart.length === 0}>
-                <QrCode className="h-5 w-5 mb-1" />
-                <span className="text-xs">PIX</span>
-              </Button>
-            </div>
-
             <Button
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
               size="lg"
               disabled={cart.length === 0}
+              onClick={() => setShowPaymentDialog(true)}
             >
               Finalizar Venda
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Forma de Pagamento</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Total */}
+            <div className="text-center py-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Total a pagar</p>
+              <p className="text-3xl font-bold text-accent">
+                R$ {total.toFixed(2)}
+              </p>
+            </div>
+
+            {/* Payment Methods */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handlePaymentSelect("Dinheiro")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                  selectedPayment === "Dinheiro"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-primary"
+                }`}
+              >
+                <Banknote className="h-6 w-6" />
+                <span className="font-medium">Dinheiro</span>
+              </button>
+              <button
+                onClick={() => handlePaymentSelect("Cartão de Crédito")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                  selectedPayment === "Cartão de Crédito"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-primary"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">Crédito</span>
+              </button>
+              <button
+                onClick={() => handlePaymentSelect("Cartão de Débito")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                  selectedPayment === "Cartão de Débito"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-primary"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">Débito</span>
+              </button>
+              <button
+                onClick={() => handlePaymentSelect("PIX")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                  selectedPayment === "PIX"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-primary"
+                }`}
+              >
+                <QrCode className="h-6 w-6" />
+                <span className="font-medium">PIX</span>
+              </button>
+            </div>
+
+            {/* Amount Paid (for cash) */}
+            {selectedPayment === "Dinheiro" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Valor Recebido
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  className="text-lg"
+                />
+                {change > 0 && (
+                  <div className="flex justify-between p-3 bg-accent/10 rounded-lg">
+                    <span className="font-medium">Troco</span>
+                    <span className="font-bold text-accent">
+                      R$ {change.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Confirm Button */}
+            <Button
+              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+              size="lg"
+              disabled={!selectedPayment}
+              onClick={handleFinalizeSale}
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Confirmar Pagamento
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Preview */}
+      {showReceipt && currentReceipt && (
+        <ReceiptPreview
+          data={currentReceipt}
+          onClose={handleNewSale}
+          onPrint={handlePrint}
+          isPrinting={isPrinting}
+          isConnected={isConnected}
+        />
+      )}
     </MainLayout>
   );
 }
