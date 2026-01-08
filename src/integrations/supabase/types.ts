@@ -581,6 +581,7 @@ export type Database = {
           endereco: string | null
           estado: string | null
           id: string
+          user_id: string
           nome_fantasia: string | null
           observacoes: string | null
           razao_social: string
@@ -603,6 +604,7 @@ export type Database = {
           razao_social: string
           telefone?: string | null
           updated_at?: string
+          user_id: string
         }
         Update: {
           ativo?: boolean | null
@@ -620,6 +622,7 @@ export type Database = {
           razao_social?: string
           telefone?: string | null
           updated_at?: string
+          user_id: string
         }
         Relationships: []
       }

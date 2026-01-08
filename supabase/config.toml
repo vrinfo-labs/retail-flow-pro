@@ -1,1 +1,4 @@
-project_id = "alamgefvfjmdzoxfhlnk"
+## Supabase Project Configuration
+
+# The project ID of your Supabase project.
+project_id = "zmknswejgdcbsbmgcsde"

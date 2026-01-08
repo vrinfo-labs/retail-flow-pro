@@ -1,330 +1,299 @@
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Button } from "@/components/ui/button";
 import {
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
   ArrowUpRight,
-  ArrowDownRight,
-  Plus,
-  Calendar,
+  ArrowDownLeft,
+  DollarSign,
+  FileText,
 } from "lucide-react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
-const cashFlowData = [
-  { name: "01/01", entradas: 4200, saidas: 2400 },
-  { name: "02/01", entradas: 3800, saidas: 1398 },
-  { name: "03/01", entradas: 5100, saidas: 2800 },
-  { name: "04/01", entradas: 4800, saidas: 3908 },
-  { name: "05/01", entradas: 5500, saidas: 2800 },
-  { name: "06/01", entradas: 6200, saidas: 3200 },
-  { name: "07/01", entradas: 4900, saidas: 2100 },
-];
+const financialData = {
+  summary: {
+    revenue: 45231.89,
+    expenses: 28450.6,
+    profit: 16781.29,
+    lastMonthRevenue: 42120.5,
+    lastMonthExpenses: 27540.3,
+  },
+  chartData: [
+    { month: "Jan", revenue: 4000, expenses: 2400 },
+    { month: "Feb", revenue: 3000, expenses: 1398 },
+    { month: "Mar", revenue: 5000, expenses: 9800 },
+    { month: "Apr", revenue: 4780, expenses: 3908 },
+    { month: "May", revenue: 5890, expenses: 4800 },
+    { month: "Jun", revenue: 4390, expenses: 3800 },
+  ],
+  recentTransactions: [
+    {
+      id: "txn_1",
+      date: "2024-06-23",
+      description: "Venda de Produto A",
+      amount: 150.0,
+      type: "revenue",
+    },
+    {
+      id: "txn_2",
+      date: "2024-06-23",
+      description: "Pagamento Fornecedor X",
+      amount: -500.0,
+      type: "expense",
+    },
+    {
+      id: "txn_3",
+      date: "2024-06-22",
+      description: "Venda de Serviço B",
+      amount: 300.0,
+      type: "revenue",
+    },
+    {
+      id: "txn_4",
+      date: "2024-06-21",
+      description: "Salário Funcionário Y",
+      amount: -2500.0,
+      type: "expense",
+    },
+    {
+      id: "txn_5",
+      date: "2024-06-20",
+      description: "Venda de Produto C",
+      amount: 75.5,
+      type: "revenue",
+    },
+  ],
+};
 
-const contasReceber = [
-  {
-    id: 1,
-    cliente: "Maria Silva",
-    valor: 450.0,
-    vencimento: "10/01/2026",
-    status: "pending",
-  },
-  {
-    id: 2,
-    cliente: "João Santos",
-    valor: 1200.0,
-    vencimento: "15/01/2026",
-    status: "pending",
-  },
-  {
-    id: 3,
-    cliente: "Ana Costa",
-    valor: 89.9,
-    vencimento: "05/01/2026",
-    status: "overdue",
-  },
-  {
-    id: 4,
-    cliente: "Carlos Oliveira",
-    valor: 560.0,
-    vencimento: "20/01/2026",
-    status: "pending",
-  },
-];
-
-const contasPagar = [
-  {
-    id: 1,
-    fornecedor: "Distribuidora ABC",
-    valor: 2500.0,
-    vencimento: "07/01/2026",
-    status: "today",
-  },
-  {
-    id: 2,
-    fornecedor: "Aluguel",
-    valor: 3200.0,
-    vencimento: "10/01/2026",
-    status: "pending",
-  },
-  {
-    id: 3,
-    fornecedor: "Energia Elétrica",
-    valor: 890.0,
-    vencimento: "15/01/2026",
-    status: "pending",
-  },
-  {
-    id: 4,
-    fornecedor: "Fornecedor XYZ",
-    valor: 1450.0,
-    vencimento: "03/01/2026",
-    status: "overdue",
-  },
-];
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(amount);
+};
 
 export default function Financeiro() {
+  const { summary, chartData, recentTransactions } = financialData;
+  const profitPercentage = (
+    ((summary.revenue - summary.expenses) / summary.revenue) *
+    100
+  ).toFixed(2);
+  const revenueGrowth = (
+    ((summary.revenue - summary.lastMonthRevenue) / summary.lastMonthRevenue) *
+    100
+  ).toFixed(2);
+  const expensesGrowth = (
+    ((summary.expenses - summary.lastMonthExpenses) /
+      summary.lastMonthExpenses) *
+    100
+  ).toFixed(2);
+
   return (
-    <MainLayout title="Financeiro" subtitle="Gestão de contas e fluxo de caixa">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-card rounded-xl p-6 border border-border/50 shadow-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Saldo Atual</span>
-            <DollarSign className="h-5 w-5 text-primary" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">R$ 45.680,00</p>
-          <p className="text-sm text-accent flex items-center gap-1 mt-1">
-            <TrendingUp className="h-4 w-4" />
-            +8.2% este mês
-          </p>
+    <MainLayout title="Financeiro" subtitle="Gestão financeira e acompanhamento">
+      <div className="flex flex-col gap-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Visão Geral Financeira</h1>
         </div>
 
-        <div className="bg-card rounded-xl p-6 border border-border/50 shadow-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">A Receber</span>
-            <ArrowDownRight className="h-5 w-5 text-accent" />
-          </div>
-          <p className="text-2xl font-bold text-accent">R$ 12.450,00</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            15 parcelas pendentes
-          </p>
-        </div>
-
-        <div className="bg-card rounded-xl p-6 border border-border/50 shadow-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">A Pagar</span>
-            <ArrowUpRight className="h-5 w-5 text-destructive" />
-          </div>
-          <p className="text-2xl font-bold text-destructive">R$ 8.040,00</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            8 contas pendentes
-          </p>
-        </div>
-
-        <div className="bg-card rounded-xl p-6 border border-border/50 shadow-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Balanço</span>
-            <TrendingUp className="h-5 w-5 text-accent" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">R$ 4.410,00</p>
-          <p className="text-sm text-muted-foreground mt-1">Positivo</p>
-        </div>
-      </div>
-
-      {/* Cash Flow Chart */}
-      <div className="bg-card rounded-xl p-6 border border-border/50 shadow-card mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="font-semibold text-foreground">Fluxo de Caixa</h3>
-            <p className="text-sm text-muted-foreground">Últimos 7 dias</p>
-          </div>
-          <Button variant="outline" size="sm">
-            <Calendar className="h-4 w-4 mr-2" />
-            Período
-          </Button>
-        </div>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={cashFlowData}>
-              <defs>
-                <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="hsl(160 84% 39%)"
-                    stopOpacity={0.3}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="hsl(160 84% 39%)"
-                    stopOpacity={0}
-                  />
-                </linearGradient>
-                <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="hsl(0 84% 60%)"
-                    stopOpacity={0.3}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="hsl(0 84% 60%)"
-                    stopOpacity={0}
-                  />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="hsl(215 25% 88%)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "hsl(215 16% 47%)", fontSize: 12 }}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "hsl(215 16% 47%)", fontSize: 12 }}
-                tickFormatter={(value) => `R$ ${value / 1000}k`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(0 0% 100%)",
-                  border: "1px solid hsl(215 25% 88%)",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                }}
-                formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-              />
-              <Area
-                type="monotone"
-                dataKey="entradas"
-                stroke="hsl(160 84% 39%)"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorEntradas)"
-                name="Entradas"
-              />
-              <Area
-                type="monotone"
-                dataKey="saidas"
-                stroke="hsl(0 84% 60%)"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorSaidas)"
-                name="Saídas"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Accounts */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Contas a Receber */}
-        <div className="bg-card rounded-xl border border-border/50 shadow-card">
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <ArrowDownRight className="h-5 w-5 text-accent" />
-              <h3 className="font-semibold text-foreground">Contas a Receber</h3>
-            </div>
-            <Button size="sm" variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Nova
-            </Button>
-          </div>
-          <div className="divide-y divide-border">
-            {contasReceber.map((conta) => (
-              <div
-                key={conta.id}
-                className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-              >
-                <div>
-                  <p className="font-medium text-foreground">{conta.cliente}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Vence: {conta.vencimento}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-accent">
-                    R$ {conta.valor.toFixed(2)}
-                  </p>
-                  <span
-                    className={`text-xs font-medium ${
-                      conta.status === "overdue"
-                        ? "text-destructive"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {conta.status === "overdue" ? "Atrasado" : "Pendente"}
-                  </span>
-                </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Receita Total
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(summary.revenue)}
               </div>
-            ))}
-          </div>
+              <p className="text-xs text-muted-foreground">
+                <span
+                  className={
+                    parseFloat(revenueGrowth) >= 0
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }
+                >
+                  {parseFloat(revenueGrowth) >= 0 ? "▲" : "▼"} {revenueGrowth}%
+                </span>{" "}
+                em relação ao mês passado
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Despesas Totais
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(summary.expenses)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                <span
+                  className={
+                    parseFloat(expensesGrowth) >= 0
+                      ? "text-red-500"
+                      : "text-green-500"
+                  }
+                >
+                  {parseFloat(expensesGrowth) >= 0 ? "▲" : "▼"} {expensesGrowth}
+                  %
+                </span>{" "}
+                em relação ao mês passado
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(summary.profit)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Margem de {profitPercentage}%
+              </p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Contas a Pagar */}
-        <div className="bg-card rounded-xl border border-border/50 shadow-card">
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <ArrowUpRight className="h-5 w-5 text-destructive" />
-              <h3 className="font-semibold text-foreground">Contas a Pagar</h3>
-            </div>
-            <Button size="sm" variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Nova
-            </Button>
-          </div>
-          <div className="divide-y divide-border">
-            {contasPagar.map((conta) => (
-              <div
-                key={conta.id}
-                className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-              >
-                <div>
-                  <p className="font-medium text-foreground">
-                    {conta.fornecedor}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Vence: {conta.vencimento}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-destructive">
-                    R$ {conta.valor.toFixed(2)}
-                  </p>
-                  <span
-                    className={`text-xs font-medium ${
-                      conta.status === "overdue"
-                        ? "text-destructive"
-                        : conta.status === "today"
-                        ? "text-warning"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {conta.status === "overdue"
-                      ? "Atrasado"
-                      : conta.status === "today"
-                      ? "Vence hoje"
-                      : "Pendente"}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Receitas vs. Despesas</CardTitle>
+            <CardDescription>
+              Análise dos últimos 6 meses
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                revenue: {
+                  label: "Receita",
+                  color: "hsl(var(--chart-1))",
+                },
+                expenses: {
+                  label: "Despesa",
+                  color: "hsl(var(--chart-2))",
+                },
+              }}
+              className="min-h-[300px] w-full"
+            >
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    tickMargin={10}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => formatCurrency(value as number)}
+                  />
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="dot" />}
+                  />
+                  <Bar
+                    dataKey="revenue"
+                    fill="var(--color-revenue)"
+                    radius={4}
+                  />
+                  <Bar
+                    dataKey="expenses"
+                    fill="var(--color-expenses)"
+                    radius={4}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Transações Recentes</CardTitle>
+            <CardDescription>
+              Últimas 5 transações financeiras registradas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-center">Tipo</TableHead>
+                  <TableHead>Data</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentTransactions.map((transaction) => (
+                  <TableRow key={transaction.id}>
+                    <TableCell className="font-medium">
+                      {transaction.description}
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-bold ${
+                        transaction.type === "revenue"
+                          ? "text-green-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {formatCurrency(transaction.amount)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge
+                        variant={
+                          transaction.type === "revenue"
+                            ? "default"
+                            : "destructive"
+                        }
+                        className="flex items-center justify-center gap-1"
+                      >
+                        {transaction.type === "revenue" ? (
+                          <ArrowUpRight className="h-4 w-4" />
+                        ) : (
+                          <ArrowDownLeft className="h-4 w-4" />
+                        )}
+                        {transaction.type === "revenue"
+                          ? "Receita"
+                          : "Despesa"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(transaction.date).toLocaleDateString("pt-BR")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );

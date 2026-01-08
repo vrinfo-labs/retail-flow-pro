@@ -177,7 +177,8 @@ class ThermalPrinterService {
       this.device = await navigator.usb.requestDevice({
         filters: [
           // Common thermal printer vendors
-          { vendorId: 0x0483 }, // STMicroelectronics (many Chinese printers)
+          { vendorId: 0x0483 }, // STMic,
+          { vendorId: 0x0B1B },
           { vendorId: 0x0416 }, // Winbond (many Chinese printers)
           { vendorId: 0x04b8 }, // Epson
           { vendorId: 0x0525 }, // PLX Technology

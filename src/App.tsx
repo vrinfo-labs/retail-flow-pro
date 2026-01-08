@@ -17,6 +17,7 @@ import Relatorios from "./pages/Relatorios";
 import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
+import { CreateAdmin } from "@/components/CreateAdmin"; // Import the temporary component
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        {/* <CreateAdmin />  */}
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
