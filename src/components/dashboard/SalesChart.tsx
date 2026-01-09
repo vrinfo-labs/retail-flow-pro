@@ -1,108 +1,52 @@
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
-interface SalesData {
-    date: string;
-    sales: number;
-}
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+
+const chartData = [
+  { month: "January", desktop: 186, mobile: 80 },
+  { month: "February", desktop: 305, mobile: 200 },
+  { month: "March", desktop: 237, mobile: 120 },
+  { month: "April", desktop: 73, mobile: 190 },
+  { month: "May", desktop: 209, mobile: 130 },
+  { month: "June", desktop: 214, mobile: 140 },
+];
+
+const chartConfig = {
+  desktop: {
+    label: "Desktop",
+    color: "hsl(var(--primary))",
+  },
+  mobile: {
+    label: "Mobile",
+    color: "hsl(var(--secondary))",
+  },
+};
 
 export function SalesChart() {
-    const [data, setData] = useState<SalesData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [totalSales, setTotalSales] = useState(0);
-
-    useEffect(() => {
-        const fetchSalesData = async () => {
-            setLoading(true);
-            const { data: salesData, error } = await supabase.rpc('get_daily_sales_for_chart');
-
-            if (error) {
-                console.error("Error fetching sales chart data:", error);
-                setData([]);
-            } else {
-                setData(salesData || []);
-                const total = (salesData || []).reduce((sum, item) => sum + item.sales, 0);
-                setTotalSales(total);
-            }
-            setLoading(false);
-        };
-
-        fetchSalesData();
-    }, []);
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString + 'T00:00:00'); // Avoid timezone issues
-        return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    };
-
   return (
-    <div className="rounded-xl bg-card border border-border/50 shadow-card p-6">
-      <div className="mb-6">
-        <h3 className="font-semibold text-foreground">Vendas (Últimos 30 Dias)</h3>
-        {loading ? (
-            <p className="text-sm text-muted-foreground">Calculando total...</p>
-        ) : (
-            <p className="text-sm text-muted-foreground">
-              Total: {totalSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </p>
-        )}
-      </div>
-      <div className="h-[280px]">
-        {loading ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>
-        ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorVendas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(160 84% 39%)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(160 84% 39%)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(215 25% 88%)" vertical={false}/>
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "hsl(215 16% 47%)", fontSize: 12 }}
-                  tickFormatter={formatDate}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "hsl(215 16% 47%)", fontSize: 12 }}
-                  tickFormatter={(value) => `R$ ${value / 1000}k`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(0 0% 100%)",
-                    border: "1px solid hsl(215 25% 88%)",
-                    borderRadius: "8px",
-                  }}
-                  labelFormatter={formatDate}
-                  formatter={(value: number) => [value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), "Vendas"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="sales"
-                  stroke="hsl(160 84% 39%)"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorVendas)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-        )}
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Visão Geral das Vendas</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+          <BarChart accessibilityLayer data={chartData}>
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="month"
+              tickLine={false}
+              tickMargin={10}
+              axisLine={false}
+              tickFormatter={(value) => value.slice(0, 3)}
+            />
+            <YAxis />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="desktop" fill={chartConfig.desktop.color} radius={4} />
+            <Bar dataKey="mobile" fill={chartConfig.mobile.color} radius={4} />
+          </BarChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
   );
 }

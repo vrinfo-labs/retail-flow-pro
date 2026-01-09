@@ -16,7 +16,6 @@ import Financeiro from "./pages/Financeiro";
 import Clientes from "./pages/Clientes";
 import Fornecedores from "./pages/Fornecedores";
 import Pedidos from "./pages/Pedidos";
-import SeparacaoPedido from "./pages/SeparacaoPedido";
 import Relatorios from "./pages/Relatorios";
 import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
@@ -112,14 +111,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Pedidos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/pedidos/separacao/:id"
-              element={
-                <ProtectedRoute>
-                  <SeparacaoPedido />
                 </ProtectedRoute>
               }
             />
