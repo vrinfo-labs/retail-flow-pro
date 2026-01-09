@@ -55,6 +55,11 @@ const menuItems = [
     path: "/fornecedores",
   },
   {
+    title: "Pedidos",
+    icon: Package,
+    path: "/pedidos",
+  },
+  {
     title: "Relatórios",
     icon: BarChart3,
     path: "/relatorios",

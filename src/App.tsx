@@ -13,6 +13,8 @@ import Estoque from "./pages/Estoque";
 import Financeiro from "./pages/Financeiro";
 import Clientes from "./pages/Clientes";
 import Fornecedores from "./pages/Fornecedores";
+import Pedidos from "./pages/Pedidos";
+import SeparacaoPedido from "./pages/SeparacaoPedido";
 import Relatorios from "./pages/Relatorios";
 import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
@@ -27,7 +29,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {/* <CreateAdmin />  */}
+        {/* <CreateAdmin /> */}
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -84,6 +86,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Fornecedores />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pedidos"
+              element={
+                <ProtectedRoute>
+                  <Pedidos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pedidos/separacao/:id"
+              element={
+                <ProtectedRoute>
+                  <SeparacaoPedido />
                 </ProtectedRoute>
               }
             />

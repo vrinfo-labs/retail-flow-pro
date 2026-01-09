@@ -1,13 +1,71 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Input } from "@/components/ui/input";
-import { Search, Phone, Building, Loader2 } from "lucide-react";
-import { useSuppliers } from "@/hooks/useSuppliers";
+import {
+  Search,
+  Phone,
+  Building,
+  Loader2,
+  MoreHorizontal,
+  Trash2,
+  Edit,
+} from "lucide-react";
+import {
+  useSuppliers,
+  useSoftDeleteSupplier,
+  Supplier,
+} from "@/hooks/useSuppliers";
 import { SupplierFormDialog } from "@/components/fornecedores/SupplierFormDialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Fornecedores() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>(
+    undefined
+  );
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
+
   const { data: suppliers, isLoading } = useSuppliers();
+  const deleteMutation = useSoftDeleteSupplier();
+
+  const handleEdit = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteRequest = (id: string) => {
+    setSupplierToDelete(id);
+    setIsConfirmingDelete(true);
+  };
+
+  const confirmDelete = () => {
+    if (supplierToDelete) {
+      deleteMutation.mutate(supplierToDelete, {
+        onSuccess: () => {
+          setIsConfirmingDelete(false);
+          setSupplierToDelete(null);
+        },
+      });
+    }
+  };
 
   const filteredSuppliers = suppliers?.filter(
     (s) =>
@@ -32,42 +90,15 @@ export default function Fornecedores() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <SupplierFormDialog />
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card">
-          <p className="text-sm text-muted-foreground">Total de Fornecedores</p>
-          <p className="text-2xl font-bold text-foreground">
-            {suppliers?.length || 0}
-          </p>
-        </div>
-        <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card">
-          <p className="text-sm text-muted-foreground">Novos este Mês</p>
-          <p className="text-2xl font-bold text-accent">
-            {suppliers?.filter((s) => {
-              const created = new Date(s.created_at);
-              const now = new Date();
-              return (
-                created.getMonth() === now.getMonth() &&
-                created.getFullYear() === now.getFullYear()
-              );
-            }).length || 0}
-          </p>
-        </div>
-        <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card">
-          <p className="text-sm text-muted-foreground">Com CNPJ</p>
-          <p className="text-2xl font-bold text-foreground">
-            {suppliers?.filter((s) => s.cnpj).length || 0}
-          </p>
-        </div>
-        <div className="bg-card rounded-xl p-4 border border-border/50 shadow-card">
-          <p className="text-sm text-muted-foreground">Com Contato</p>
-          <p className="text-2xl font-bold text-foreground">
-            {suppliers?.filter((s) => s.contato || s.telefone).length || 0}
-          </p>
-        </div>
+        <SupplierFormDialog
+          supplier={editingSupplier}
+          onOpenChange={(open) => {
+            setIsFormOpen(open);
+            if (!open) setEditingSupplier(undefined);
+          }}
+          open={isFormOpen}
+        />
+        <Button onClick={() => setIsFormOpen(true)}>Novo Fornecedor</Button>
       </div>
 
       {/* Suppliers Table */}
@@ -86,67 +117,68 @@ export default function Fornecedores() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left p-4 font-medium text-muted-foreground">
-                    Fornecedor
-                  </th>
-                  <th className="text-left p-4 font-medium text-muted-foreground">
-                    Contato
-                  </th>
-                  <th className="text-left p-4 font-medium text-muted-foreground">
-                    Localização
-                  </th>
-                  <th className="text-left p-4 font-medium text-muted-foreground">
-                    Cadastro
-                  </th>
+                  <th className="text-left p-4 font-medium">Fornecedor</th>
+                  <th className="text-left p-4 font-medium">Contato</th>
+                  <th className="text-left p-4 font-medium">Localização</th>
+                  <th className="text-left p-4 font-medium">Cadastro</th>
+                  <th className="p-4"></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSuppliers?.map((fornecedor, index) => (
+                {filteredSuppliers?.map((supplier) => (
                   <tr
-                    key={fornecedor.id}
-                    className="border-b border-border hover:bg-muted/30 transition-colors animate-fade-in"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    key={supplier.id}
+                    className="border-b border-border hover:bg-muted/30 transition-colors"
                   >
                     <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Building className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {fornecedor.razao_social}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {fornecedor.cnpj || "Sem CNPJ"}
-                          </p>
-                        </div>
+                      <div className="font-medium">{supplier.razao_social}</div>
+                      <div className="text-muted-foreground">
+                        {supplier.cnpj || "Sem CNPJ"}
                       </div>
                     </td>
                     <td className="p-4">
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {fornecedor.contato || "-"}
-                        </p>
-                        {fornecedor.telefone && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {fornecedor.telefone}
-                          </div>
-                        )}
-                      </div>
+                      <div>{supplier.contato || "-"}</div>
+                      {supplier.telefone && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {supplier.telefone}
+                        </div>
+                      )}
                     </td>
                     <td className="p-4 text-muted-foreground">
-                      {[fornecedor.cidade, fornecedor.estado]
+                      {[supplier.cidade, supplier.estado]
                         .filter(Boolean)
                         .join(", ") || "-"}
                     </td>
                     <td className="p-4 text-muted-foreground">
-                      {new Date(fornecedor.created_at).toLocaleDateString(
+                      {new Date(supplier.created_at).toLocaleDateString(
                         "pt-BR"
                       )}
+                    </td>
+                    <td className="p-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(supplier)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteRequest(supplier.id)}
+                            className="text-red-500"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
@@ -155,6 +187,25 @@ export default function Fornecedores() {
           </div>
         )}
       </div>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isConfirmingDelete} onOpenChange={setIsConfirmingDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja remover este fornecedor? Esta ação não
+              pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" />) : null}
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }
