@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
   ShoppingCart,
   Printer,
   Check,
+  Calendar,
+  ChevronsUpDown,
 } from "lucide-react";
 import { PrinterStatus } from "@/components/pdv/PrinterStatus";
 import { ReceiptPreview } from "@/components/pdv/ReceiptPreview";
@@ -25,23 +27,24 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
+import { useProducts, Product } from "@/hooks/useProducts";
+import { useCustomers, Customer, useCreateCustomer } from "@/hooks/useCustomers";
+import { useCreateSale, SaleInsert } from "@/hooks/useSales";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 interface CartItem {
-  id: number;
+  id: string;
   name: string;
   price: number;
   quantity: number;
+  product_id: string;
 }
-
-const sampleProducts = [
-  { id: 1, name: "Arroz Integral 5kg", price: 24.9, code: "7891234567890" },
-  { id: 2, name: "Feijão Carioca 1kg", price: 8.5, code: "7891234567891" },
-  { id: 3, name: "Óleo de Soja 900ml", price: 7.9, code: "7891234567892" },
-  { id: 4, name: "Açúcar Refinado 1kg", price: 4.5, code: "7891234567893" },
-  { id: 5, name: "Café Torrado 500g", price: 15.9, code: "7891234567894" },
-  { id: 6, name: "Leite Integral 1L", price: 5.9, code: "7891234567895" },
-];
 
 const companyInfo = {
   name: "MINHA LOJA LTDA",
@@ -57,12 +60,22 @@ export default function PDV() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [amountPaid, setAmountPaid] = useState("");
+  const [installments, setInstallments] = useState(1);
   const [saleComplete, setSaleComplete] = useState(false);
   const [currentReceipt, setCurrentReceipt] = useState<ReceiptData | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [openCustomerCombobox, setOpenCustomerCombobox] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
 
+  const { data: products, isLoading: isLoadingProducts } = useProducts();
+  const { data: customers, isLoading: isLoadingCustomers } = useCustomers();
+  const createCustomer = useCreateCustomer();
+  const createSale = useCreateSale();
   const { isConnected, isPrinting, printReceipt } = useThermalPrinter();
 
-  const addToCart = (product: (typeof sampleProducts)[0]) => {
+  const addToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -72,11 +85,11 @@ export default function PDV() {
             : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { id: product.id, name: product.nome, price: product.preco_venda, quantity: 1, product_id: product.id }];
     });
   };
 
-  const updateQuantity = (id: number, delta: number) => {
+  const updateQuantity = (id: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) =>
@@ -88,7 +101,7 @@ export default function PDV() {
     );
   };
 
-  const removeItem = (id: number) => {
+  const removeItem = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   };
 
@@ -98,22 +111,36 @@ export default function PDV() {
   );
   const total = subtotal;
 
-  const filteredProducts = sampleProducts.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.code.includes(searchTerm)
-  );
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    return products.filter(
+      (p) =>
+        p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.codigo_barras?.includes(searchTerm)
+    );
+  }, [products, searchTerm]);
 
   const handlePaymentSelect = (method: string) => {
+    if (method === 'Crediário' && !selectedCustomer) {
+      toast({ 
+        title: "Cliente não selecionado", 
+        description: "Por favor, selecione um cliente para vendas a prazo.",
+        variant: "destructive"
+      });
+      return;
+    }
     setSelectedPayment(method);
     setAmountPaid(total.toFixed(2));
+    if (method !== 'Crediário') {
+      setInstallments(1);
+    }
   };
 
-  const handleFinalizeSale = () => {
+  const handleFinalizeSale = async () => {
     if (!selectedPayment) return;
 
     const paid = parseFloat(amountPaid) || 0;
-    if (paid < total) {
+    if (selectedPayment !== 'Crediário' && paid < total) {
       toast({
         title: "Valor insuficiente",
         description: "O valor pago é menor que o total",
@@ -122,8 +149,33 @@ export default function PDV() {
       return;
     }
 
+    if (!selectedCustomer) {
+      toast({ 
+        title: "Cliente não selecionado", 
+        description: "Por favor, selecione um cliente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const sale: SaleInsert = {
+      customer_id: selectedCustomer.id,
+      total_amount: total,
+      payment_method: selectedPayment,
+      installments: selectedPayment === 'Crediário' ? installments : undefined,
+      items: cart.map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity,
+      }))
+    }
+
+    await createSale.mutateAsync(sale);
+
     const receipt: ReceiptData = {
       company: companyInfo,
+      customer: selectedCustomer ? { name: selectedCustomer.nome, document: selectedCustomer.cpf_cnpj || '' } : undefined,
       items: cart.map((item) => ({
         name: item.name,
         quantity: item.quantity,
@@ -134,11 +186,12 @@ export default function PDV() {
       total,
       paymentMethod: selectedPayment,
       amountPaid: paid,
-      change: paid - total,
+      change: selectedPayment === 'Dinheiro' ? paid - total : 0,
       cashier: "Caixa 01",
       operator: "Maria Silva",
       saleNumber: Math.floor(Math.random() * 100000),
       date: new Date(),
+      installments: selectedPayment === 'Crediário' ? installments : undefined,
     };
 
     setCurrentReceipt(receipt);
@@ -160,9 +213,18 @@ export default function PDV() {
     setCart([]);
     setSelectedPayment(null);
     setAmountPaid("");
+    setInstallments(1);
     setSaleComplete(false);
     setShowReceipt(false);
     setCurrentReceipt(null);
+    setSelectedCustomer(null);
+  };
+
+  const handleCreateCustomer = async () => {
+    if (newCustomerName.trim() === '') return;
+    await createCustomer.mutateAsync({ nome: newCustomerName.trim() });
+    setNewCustomerName('');
+    setShowNewCustomerDialog(false);
   };
 
   const change = (parseFloat(amountPaid) || 0) - total;
@@ -188,28 +250,34 @@ export default function PDV() {
 
           {/* Products Grid */}
           <div className="flex-1 overflow-auto p-4">
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => addToCart(product)}
-                  className="flex flex-col items-start p-4 rounded-lg border border-border bg-background hover:border-primary hover:bg-primary/5 transition-all text-left group"
-                >
-                  <div className="w-full aspect-square rounded-md bg-muted mb-3 flex items-center justify-center">
-                    <ShoppingCart className="h-8 w-8 text-muted-foreground/50 group-hover:text-primary/50 transition-colors" />
-                  </div>
-                  <p className="font-medium text-foreground text-sm line-clamp-2">
-                    {product.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {product.code}
-                  </p>
-                  <p className="text-lg font-bold text-accent mt-2">
-                    R$ {product.price.toFixed(2)}
-                  </p>
-                </button>
-              ))}
-            </div>
+            {isLoadingProducts ? (
+              <div className="flex items-center justify-center h-full">
+                <p>Carregando produtos...</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {filteredProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => addToCart(product)}
+                    className="flex flex-col items-start p-4 rounded-lg border border-border bg-background hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                  >
+                    <div className="w-full aspect-square rounded-md bg-muted mb-3 flex items-center justify-center">
+                      <ShoppingCart className="h-8 w-8 text-muted-foreground/50 group-hover:text-primary/50 transition-colors" />
+                    </div>
+                    <p className="font-medium text-foreground text-sm line-clamp-2">
+                      {product.nome}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {product.codigo_barras}
+                    </p>
+                    <p className="text-lg font-bold text-accent mt-2">
+                      R$ {product.preco_venda.toFixed(2)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -281,12 +349,57 @@ export default function PDV() {
           {/* Cart Footer */}
           <div className="border-t border-border p-4 space-y-4">
             {/* Customer */}
-            <button className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors text-left">
-              <User className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                Identificar cliente
-              </span>
-            </button>
+            <Popover open={openCustomerCombobox} onOpenChange={setOpenCustomerCombobox}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className={cn(
+                    "w-full justify-between",
+                    !selectedCustomer && "text-muted-foreground"
+                  )}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  {selectedCustomer ? selectedCustomer.nome : "Selecionar cliente"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command>
+                  <CommandInput 
+                    placeholder="Buscar cliente..." 
+                    onValueChange={setCustomerSearchTerm}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      <DialogTrigger asChild>
+                         <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => setShowNewCustomerDialog(true)}
+                        >
+                          {`Criar "${customerSearchTerm}"`}
+                        </Button>
+                      </DialogTrigger>
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {customers?.map((customer) => (
+                        <CommandItem
+                          key={customer.id}
+                          onSelect={() => {
+                            setSelectedCustomer(customer);
+                            setOpenCustomerCombobox(false);
+                          }}
+                        >
+                          {customer.nome}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
 
             {/* Totals */}
             <div className="space-y-2">
@@ -329,7 +442,7 @@ export default function PDV() {
             </div>
 
             {/* Payment Methods */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => handlePaymentSelect("Dinheiro")}
                 className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
@@ -374,6 +487,17 @@ export default function PDV() {
                 <QrCode className="h-6 w-6" />
                 <span className="font-medium">PIX</span>
               </button>
+              <button
+                onClick={() => handlePaymentSelect("Crediário")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                  selectedPayment === "Crediário"
+                    ? "border-accent bg-accent/10"
+                    : "border-border hover:border-primary"
+                }`}
+              >
+                <Calendar className="h-6 w-6" />
+                <span className="font-medium">Crediário</span>
+              </button>
             </div>
 
             {/* Amount Paid (for cash) */}
@@ -400,17 +524,54 @@ export default function PDV() {
               </div>
             )}
 
+            {/* Installments (for crediario) */}
+            {selectedPayment === "Crediário" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Número de Parcelas
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={installments}
+                  onChange={(e) => setInstallments(parseInt(e.target.value, 10))}
+                  className="text-lg"
+                />
+              </div>
+            )}
+
             {/* Confirm Button */}
             <Button
               className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
               size="lg"
-              disabled={!selectedPayment}
+              disabled={!selectedPayment || createSale.isLoading}
               onClick={handleFinalizeSale}
             >
-              <Check className="h-4 w-4 mr-2" />
-              Confirmar Pagamento
+              {createSale.isLoading ? "Salvando..." : <><Check className="h-4 w-4 mr-2" />Confirmar Pagamento</>}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+       {/* New Customer Dialog */}
+      <Dialog open={showNewCustomerDialog} onOpenChange={setShowNewCustomerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Cliente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input 
+              placeholder="Nome do cliente"
+              value={newCustomerName}
+              onChange={(e) => setNewCustomerName(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button onClick={handleCreateCustomer}>Salvar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

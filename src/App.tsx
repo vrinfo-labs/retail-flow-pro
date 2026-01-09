@@ -9,7 +9,9 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import PDV from "./pages/PDV";
 import Caixas from "./pages/Caixas";
+import Operadores from "./pages/Operadores";
 import Estoque from "./pages/Estoque";
+import ProductHistory from "./pages/ProductHistory";
 import Financeiro from "./pages/Financeiro";
 import Clientes from "./pages/Clientes";
 import Fornecedores from "./pages/Fornecedores";
@@ -58,10 +60,26 @@ const App = () => (
               }
             />
             <Route
+              path="/operadores"
+              element={
+                <ProtectedRoute>
+                  <Operadores />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/estoque"
               element={
                 <ProtectedRoute>
                   <Estoque />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/estoque/:id/historico"
+              element={
+                <ProtectedRoute>
+                  <ProductHistory />
                 </ProtectedRoute>
               }
             />

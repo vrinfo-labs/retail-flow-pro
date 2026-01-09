@@ -35,6 +35,11 @@ const menuItems = [
     path: "/caixas",
   },
   {
+    title: "Operadores",
+    icon: UserCircle,
+    path: "/operadores",
+  },
+  {
     title: "Estoque",
     icon: Package,
     path: "/estoque",

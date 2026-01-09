@@ -9,11 +9,40 @@ import {
   ShoppingCart,
   Package,
   Users,
-  TrendingUp,
-  TrendingDown,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface DashboardStats {
+  sales_today: number;
+  sales_yesterday: number;
+  orders_today: number;
+  products_in_stock: number;
+  low_stock_products: number;
+  active_customers: number;
+}
 
 export default function Dashboard() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.rpc('get_dashboard_stats');
+      if (error) {
+        console.error("Error fetching dashboard stats:", error);
+      } else if (data && data.length > 0) {
+        setStats(data[0]);
+      }
+      setLoading(false);
+    };
+    fetchStats();
+  }, []);
+
+  const salesChange = stats ? ((stats.sales_today - stats.sales_yesterday) / (stats.sales_yesterday || 1)) * 100 : 0;
+  const salesChangeType = salesChange >= 0 ? "positive" : "negative";
+
   return (
     <MainLayout
       title="Dashboard"
@@ -23,32 +52,32 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatCard
           title="Vendas Hoje"
-          value="R$ 4.523,00"
-          change="+12.5% vs ontem"
-          changeType="positive"
+          value={loading ? "-" : `R$ ${stats?.sales_today.toFixed(2)}`}
+          change={loading ? "-" : `${salesChange.toFixed(1)}% vs ontem`}
+          changeType={salesChangeType}
           icon={DollarSign}
           iconColor="accent"
         />
         <StatCard
           title="Pedidos Hoje"
-          value="28"
-          change="+8 pedidos"
+          value={loading ? "-" : stats?.orders_today.toString()}
+          change={loading ? "-" : "..."} // Placeholder for more detailed change
           changeType="positive"
           icon={ShoppingCart}
           iconColor="primary"
         />
         <StatCard
           title="Produtos em Estoque"
-          value="1.234"
-          change="4 com estoque baixo"
-          changeType="negative"
+          value={loading ? "-" : stats?.products_in_stock.toString()}
+          change={loading ? "-" : `${stats?.low_stock_products} com estoque baixo`}
+          changeType={stats && stats.low_stock_products > 0 ? "negative" : "positive"}
           icon={Package}
           iconColor="warning"
         />
         <StatCard
           title="Clientes Ativos"
-          value="856"
-          change="+23 este mês"
+          value={loading ? "-" : stats?.active_customers.toString()}
+          change={loading ? "-" : "este mês"} 
           changeType="positive"
           icon={Users}
           iconColor="info"

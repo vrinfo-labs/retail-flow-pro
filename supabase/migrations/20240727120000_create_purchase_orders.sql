@@ -1,11 +1,11 @@
 -- Enum for purchase order status
-CREATE TYPE public.purchase_order_status AS ENUM (''pending'', ''partially_received'', ''received'', ''canceled'');
+CREATE TYPE public.purchase_order_status AS ENUM ('pending', 'partially_received', 'received', 'canceled');
 
 -- Purchase orders table
 CREATE TABLE public.purchase_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   supplier_id UUID REFERENCES public.suppliers(id) NOT NULL,
-  status public.purchase_order_status NOT NULL DEFAULT ''pending'',
+  status public.purchase_order_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   deleted_at TIMESTAMPTZ
