@@ -2,37 +2,46 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Tipos para fornecedores
+// Interfaces
 export interface Supplier {
   id: string;
-  razao_social: string;
-  nome_fantasia: string | null;
-  cnpj: string | null;
-  contato: string | null;
+  nome: string;
   telefone: string | null;
   email: string | null;
   endereco: string | null;
-  cidade: string | null;
-  estado: string | null;
-  cep: string | null;
-  observacoes: string | null;
-  deleted_at: string | null; // Adicionado para soft delete
-  created_at: string;
+  cnpj: string | null;
+  ativo: boolean;
 }
 
-export type SupplierInsert = Omit<Supplier, 'id' | 'created_at' | 'deleted_at'>;
-export type SupplierUpdate = Partial<SupplierInsert>;
+export interface SupplierInsert {
+  nome: string;
+  telefone?: string;
+  email?: string;
+  endereco?: string;
+  cnpj?: string;
+}
 
-// Hook para buscar fornecedores ativos
-export function useSuppliers() {
+export interface SupplierFilters {
+  searchTerm?: string;
+}
+
+// Hooks
+export function useSuppliers(filters: SupplierFilters = {}) {
+  const { searchTerm } = filters;
+
   return useQuery({
-    queryKey: ["suppliers"],
+    queryKey: ["suppliers", filters],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("suppliers")
         .select("*")
-        .is('deleted_at', null) // Filtra os não deletados
-        .order("razao_social");
+        .eq("ativo", true);
+
+      if (searchTerm) {
+        query = query.or(`nome.ilike.%${searchTerm}%,cnpj.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query.order("nome");
 
       if (error) throw error;
       return data as Supplier[];
@@ -40,7 +49,6 @@ export function useSuppliers() {
   });
 }
 
-// Hook para criar um novo fornecedor
 export function useCreateSupplier() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -52,91 +60,65 @@ export function useCreateSupplier() {
         .insert(supplier)
         .select()
         .single();
-
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-      toast({
-        title: "Fornecedor cadastrado",
-        description: "O fornecedor foi adicionado com sucesso.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["products"] }); // Invalidate products to refresh supplier info
+      toast({ title: "Fornecedor cadastrado", description: "O fornecedor foi criado com sucesso." });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao cadastrar",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error) => {
+      toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
     },
   });
 }
 
-// Hook para atualizar um fornecedor
 export function useUpdateSupplier() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...supplier }: { id: string } & SupplierUpdate) => {
+    mutationFn: async (supplier: Partial<SupplierInsert> & { id: string }) => {
       const { data, error } = await supabase
         .from("suppliers")
         .update(supplier)
-        .eq('id', id)
+        .eq('id', supplier.id)
         .select()
         .single();
-
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-      toast({
-        title: "Fornecedor atualizado",
-        description: "Os dados do fornecedor foram atualizados.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({ title: "Fornecedor atualizado", description: "As informações foram salvas." });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao atualizar",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error) => {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
     },
   });
 }
 
-// Hook para deletar (soft delete) um fornecedor
-export function useSoftDeleteSupplier() {
+export function useDeleteSupplier() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("suppliers")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-
+        .update({ ativo: false })
+        .eq('id', id);
       if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-      toast({
-        title: "Fornecedor removido",
-        description: "O fornecedor foi movido para a lixeira.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({ title: "Fornecedor excluído", description: "O fornecedor foi movido para a lixeira." });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao remover",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error) => {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     },
   });
 }

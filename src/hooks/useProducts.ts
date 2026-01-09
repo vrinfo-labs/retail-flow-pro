@@ -2,7 +2,57 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// ... (interfaces Product, ProductInsert, etc. permanecem as mesmas)
+export interface Product {
+  id: string;
+  codigo: string | null;
+  codigo_barras: string | null;
+  nome: string;
+  descricao: string | null;
+  categoria_id: string | null;
+  supplier_id: string | null;
+  preco_custo: number;
+  preco_venda: number;
+  estoque: number;
+  estoque_minimo: number;
+  unidade: string | null;
+  ativo: boolean | null;
+  imagem_url: string | null;
+  categories?: { nome: string } | null;
+  suppliers?: { nome: string } | null;
+}
+
+export interface ProductInsert {
+  codigo?: string;
+  codigo_barras?: string;
+  nome: string;
+  descricao?: string;
+  categoria_id?: string;
+  supplier_id?: string;
+  preco_custo: number;
+  preco_venda: number;
+  estoque?: number;
+  estoque_minimo?: number;
+  unidade?: string;
+}
+
+export type StockStatus = 'all' | 'normal' | 'low' | 'critical';
+
+export interface ProductFilters {
+  searchTerm?: string;
+  category?: string;
+  stockStatus?: StockStatus;
+}
+
+export interface ProductHistory {
+  id: string;
+  created_at: string;
+  tipo: 'venda' | 'compra' | 'ajuste_entrada' | 'ajuste_saida' | 'devolucao';
+  quantidade: number;
+  saldo_anterior: number;
+  saldo_novo: number;
+  observacao: string | null;
+  users: { nome: string } | null;
+}
 
 export function useProducts(filters: ProductFilters = {}) {
   const { searchTerm, category, stockStatus } = filters;
@@ -14,7 +64,7 @@ export function useProducts(filters: ProductFilters = {}) {
         p_search_term: searchTerm,
         p_category_id: category,
         p_stock_status: stockStatus,
-      }).select('*, categories(nome)');
+      }).select('*, categories(nome), suppliers(nome)');
 
       if (error) throw error;
       return data as Product[];
@@ -22,7 +72,69 @@ export function useProducts(filters: ProductFilters = {}) {
   });
 }
 
-// ... (useProduct, useProductHistory, useCategories permanecem os mesmos)
+export function useProduct(id: string) {
+  return useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(nome), suppliers(nome)')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data as Product;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useProductHistory(productId: string) {
+  return useQuery({
+    queryKey: ['productHistory', productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('estoque_movimento')
+        .select('*, users(nome)')
+        .eq('produto_id', productId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as ProductHistory[];
+    },
+    enabled: !!productId,
+  });
+}
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .order("nome");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useSuppliers() {
+  return useQuery({
+    queryKey: ["suppliers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("*")
+        .order("nome");
+
+      if (error) throw error;
+      return data;
+    },
+  });
+}
 
 export function useCreateProduct() {
   const queryClient = useQueryClient();
@@ -108,7 +220,6 @@ export function useDeleteProduct() {
       toast({ 
         title: "Produto excluído", 
         description: "O produto foi movido para a lixeira.",
-        variant: "success"
       });
     },
     onError: (error: Error) => {

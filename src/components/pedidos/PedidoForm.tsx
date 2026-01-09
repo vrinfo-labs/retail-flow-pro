@@ -16,8 +16,12 @@ interface OrderItem {
   value: string;
 }
 
-export function PedidoForm() {
-  const [items, setItems] = useState<OrderItem[]>([]);
+interface PedidoFormProps {
+  items: OrderItem[];
+  setItems: React.Dispatch<React.SetStateAction<OrderItem[]>>;
+}
+
+export function PedidoForm({ items, setItems }: PedidoFormProps) {
   const { data: products, isLoading: isLoadingProducts } = useProducts();
   const createProduct = useCreateProduct();
   const [openCombobox, setOpenCombobox] = useState<string | null>(null);
@@ -35,20 +39,22 @@ export function PedidoForm() {
     setItems(items.filter(item => item.id !== id));
   };
 
-  const handleCreateProduct = async (productName: string, itemId: string) => {
-    await createProduct.mutateAsync({ nome: productName, preco_venda: 0.01, preco_custo: 0 });
+  const handleCreateProduct = async (productName: string) => {
+    const newProduct = await createProduct.mutateAsync({ nome: productName, preco_venda: 0.01, preco_custo: 0, estoque: 0 });
+    // After creating, you might want to automatically select it.
+    // This part is complex because it would require finding the right item to update.
+    // For now, let's just close the combobox.
     setOpenCombobox(null);
   };
 
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pt-4">
       <div className="grid grid-cols-12 gap-2 font-semibold text-sm text-muted-foreground px-2">
         <div className="col-span-3">Produto</div>
         <div className="col-span-2">Fornecedor</div>
         <div className="col-span-3">Referência</div>
-        <div className="col-span-1">Qtd.</div>
-        <div className="col-span-2">Valor</div>
+        <div className="col-span-1 text-center">Qtd.</div>
+        <div className="col-span-2 text-right">Valor</div>
         <div className="col-span-1"></div>
       </div>
       {items.map(item => (
@@ -64,14 +70,14 @@ export function PedidoForm() {
                     !item.product && "text-muted-foreground"
                   )}
                 >
-                  {item.product ? item.product.nome : "Selecione um produto"}
+                  {item.product ? item.product.nome : "Selecione"}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                 <Command>
                   <CommandInput 
-                    placeholder="Procure um produto ou crie um novo..." 
+                    placeholder="Procurar ou criar produto..." 
                     onValueChange={setSearchTerm}
                   />
                   <CommandList>
@@ -79,7 +85,7 @@ export function PedidoForm() {
                       <Button
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleCreateProduct(searchTerm, item.id)}
+                        onClick={() => handleCreateProduct(searchTerm)}
                       >
                         {`Criar "${searchTerm}"`}
                       </Button>
@@ -103,46 +109,16 @@ export function PedidoForm() {
               </PopoverContent>
             </Popover>
           </div>
-          <div className="col-span-2">
-            <Input
-              placeholder="Fornecedor"
-              value={item.supplier}
-              onChange={(e) => handleItemChange(item.id, 'supplier', e.target.value)}
-            />
-          </div>
-          <div className="col-span-3">
-            <Input
-              placeholder="Referência"
-              value={item.reference}
-              onChange={(e) => handleItemChange(item.id, 'reference', e.target.value)}
-            />
-          </div>
-          <div className="col-span-1">
-            <Input
-              type="number"
-              placeholder="Qtd."
-              value={item.quantity}
-              onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-            />
-          </div>
-          <div className="col-span-2">
-            <Input
-              type="number"
-              placeholder="Valor"
-              value={item.value}
-              onChange={(e) => handleItemChange(item.id, 'value', e.target.value)}
-            />
-          </div>
-          <div className="col-span-1">
-            <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}>
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
+          <div className="col-span-2"><Input placeholder="Fornecedor" value={item.supplier} onChange={(e) => handleItemChange(item.id, 'supplier', e.target.value)} /></div>
+          <div className="col-span-3"><Input placeholder="Referência" value={item.reference} onChange={(e) => handleItemChange(item.id, 'reference', e.target.value)} /></div>
+          <div className="col-span-1"><Input type="number" placeholder="Qtd." value={item.quantity} onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)} className="text-center" /></div>
+          <div className="col-span-2"><Input type="number" placeholder="Valor" value={item.value} onChange={(e) => handleItemChange(item.id, 'value', e.target.value)} className="text-right" /></div>
+          <div className="col-span-1 text-right"><Button variant="ghost" size="icon" onClick={() => handleRemoveItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
         </div>
       ))}
       <Button onClick={handleAddItem} variant="outline">
         <Plus className="h-4 w-4 mr-2" />
-        Adicionar Produto
+        Adicionar Item
       </Button>
     </div>
   );

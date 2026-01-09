@@ -2,46 +2,55 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Interfaces
 export interface Customer {
   id: string;
+  created_at: string;
   nome: string;
-  cpf_cnpj: string | null;
   telefone: string | null;
   email: string | null;
   endereco: string | null;
   cidade: string | null;
   estado: string | null;
-  cep: string | null;
+  cpf_cnpj: string | null;
   data_nascimento: string | null;
   limite_credito: number | null;
-  observacoes: string | null;
-  ativo: boolean | null;
-  created_at: string;
+  ativo: boolean;
 }
 
 export interface CustomerInsert {
   nome: string;
-  cpf_cnpj?: string;
   telefone?: string;
   email?: string;
   endereco?: string;
   cidade?: string;
   estado?: string;
-  cep?: string;
-  data_nascimento?: string;
+  cpf_cnpj?: string;
+  data_nascimento?: string | null;
   limite_credito?: number;
-  observacoes?: string;
 }
 
-export function useCustomers() {
+export interface CustomerFilters {
+  searchTerm?: string;
+}
+
+// Hooks
+export function useCustomers(filters: CustomerFilters = {}) {
+  const { searchTerm } = filters;
+
   return useQuery({
-    queryKey: ["customers"],
+    queryKey: ["customers", filters],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customers")
         .select("*")
-        .eq("ativo", true)
-        .order("nome");
+        .eq("ativo", true);
+
+      if (searchTerm) {
+        query = query.or(`nome.ilike.%${searchTerm}%,cpf_cnpj.ilike.%${searchTerm}%,telefone.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
       return data as Customer[];
@@ -60,23 +69,62 @@ export function useCreateCustomer() {
         .insert(customer)
         .select()
         .single();
-
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast({
-        title: "Cliente cadastrado",
-        description: "O cliente foi adicionado com sucesso.",
-      });
+      toast({ title: "Cliente cadastrado", description: "O cliente foi criado com sucesso." });
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao cadastrar",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error) => {
+      toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateCustomer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (customer: Partial<CustomerInsert> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("customers")
+        .update(customer)
+        .eq('id', customer.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast({ title: "Cliente atualizado", description: "As informações foram salvas." });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("customers")
+        .update({ ativo: false })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      toast({ title: "Cliente excluído", description: "O cliente foi movido para a lixeira." });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     },
   });
 }

@@ -1,193 +1,99 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Plus, Loader2 } from "lucide-react";
-import { useCreateSupplier } from "@/hooks/useSuppliers";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useCreateSupplier, useUpdateSupplier, Supplier } from "@/hooks/useSuppliers";
+import { Loader2 } from "lucide-react";
 
-export function SupplierFormDialog() {
-  const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    razao_social: "",
-    nome_fantasia: "",
-    cnpj: "",
-    contato: "",
-    telefone: "",
-    email: "",
-    cidade: "",
-    estado: "",
+const supplierSchema = z.object({
+  nome: z.string().min(1, "Nome é obrigatório"),
+  telefone: z.string().optional(),
+  email: z.string().email("Email inválido").optional().or(z.literal('')),
+  endereco: z.string().optional(),
+  cnpj: z.string().optional(),
+});
+
+type SupplierFormData = z.infer<typeof supplierSchema>;
+
+interface SupplierFormDialogProps {
+  supplier: Supplier | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function SupplierFormDialog({ supplier, open, onOpenChange }: SupplierFormDialogProps) {
+  const createSupplier = useCreateSupplier();
+  const updateSupplier = useUpdateSupplier();
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<SupplierFormData>({
+    resolver: zodResolver(supplierSchema),
   });
 
-  const createSupplier = useCreateSupplier();
+  useEffect(() => {
+    if (supplier) {
+      reset(supplier);
+    } else {
+      reset({ nome: '', telefone: '', email: '', endereco: '', cnpj: '' });
+    }
+  }, [supplier, reset]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    await createSupplier.mutateAsync({
-      razao_social: formData.razao_social,
-      nome_fantasia: formData.nome_fantasia || undefined,
-      cnpj: formData.cnpj || undefined,
-      contato: formData.contato || undefined,
-      telefone: formData.telefone || undefined,
-      email: formData.email || undefined,
-      cidade: formData.cidade || undefined,
-      estado: formData.estado || undefined,
-    });
-
-    setFormData({
-      razao_social: "",
-      nome_fantasia: "",
-      cnpj: "",
-      contato: "",
-      telefone: "",
-      email: "",
-      cidade: "",
-      estado: "",
-    });
-    setOpen(false);
+  const onSubmit = async (data: SupplierFormData) => {
+    try {
+      if (supplier) {
+        await updateSupplier.mutateAsync({ ...data, id: supplier.id });
+      } else {
+        await createSupplier.mutateAsync(data);
+      }
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
+  const isPending = createSupplier.isPending || updateSupplier.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Fornecedor
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Cadastrar Fornecedor</DialogTitle>
+          <DialogTitle>{supplier ? "Editar Fornecedor" : "Novo Fornecedor"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="razao_social">Razão Social *</Label>
-            <Input
-              id="razao_social"
-              value={formData.razao_social}
-              onChange={(e) =>
-                setFormData({ ...formData, razao_social: e.target.value })
-              }
-              placeholder="Nome da empresa"
-              required
-            />
+            <Label htmlFor="nome">Nome *</Label>
+            <Input id="nome" {...register("nome")} placeholder="Nome do fornecedor" />
+            {errors.nome && <p className="text-sm text-destructive">{errors.nome.message}</p>}
           </div>
-
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
-              <Input
-                id="nome_fantasia"
-                value={formData.nome_fantasia}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome_fantasia: e.target.value })
-                }
-                placeholder="Nome fantasia"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cnpj">CNPJ</Label>
-              <Input
-                id="cnpj"
-                value={formData.cnpj}
-                onChange={(e) =>
-                  setFormData({ ...formData, cnpj: e.target.value })
-                }
-                placeholder="00.000.000/0000-00"
-              />
-            </div>
+             <div className="space-y-2">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input id="telefone" {...register("telefone")} placeholder="(00) 00000-0000" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input id="cnpj" {...register("cnpj")} placeholder="00.000.000/0000-00" />
+              </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contato">Contato</Label>
-              <Input
-                id="contato"
-                value={formData.contato}
-                onChange={(e) =>
-                  setFormData({ ...formData, contato: e.target.value })
-                }
-                placeholder="Nome do contato"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
-              <Input
-                id="telefone"
-                value={formData.telefone}
-                onChange={(e) =>
-                  setFormData({ ...formData, telefone: e.target.value })
-                }
-                placeholder="(00) 0000-0000"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              placeholder="contato@empresa.com.br"
-            />
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" {...register("email")} placeholder="contato@fornecedor.com" />
+            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cidade">Cidade</Label>
-              <Input
-                id="cidade"
-                value={formData.cidade}
-                onChange={(e) =>
-                  setFormData({ ...formData, cidade: e.target.value })
-                }
-                placeholder="São Paulo"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estado">Estado</Label>
-              <Input
-                id="estado"
-                value={formData.estado}
-                onChange={(e) =>
-                  setFormData({ ...formData, estado: e.target.value })
-                }
-                placeholder="SP"
-                maxLength={2}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="endereco">Endereço</Label>
+            <Input id="endereco" {...register("endereco")} placeholder="Rua, Nº, Bairro, Cidade - UF" />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Cancelar
+          <DialogFooter className="pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {supplier ? "Salvar" : "Cadastrar"}
             </Button>
-            <Button
-              type="submit"
-              className="bg-accent hover:bg-accent/90"
-              disabled={createSupplier.isPending}
-            >
-              {createSupplier.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              Cadastrar
-            </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
