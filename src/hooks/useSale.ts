@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 
-export function usePedido(id: string) {
+export function useSale(id: string) {
   return useQuery({
-    queryKey: ['pedido', id],
+    queryKey: ['sale', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('pedidos')
+        .from('sales')
         .select(`
           *,
-          pedido_items (*)
+          sale_items (*)
         `)
         .eq('id', id)
         .single();

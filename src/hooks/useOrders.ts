@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
-import { Order } from "@/types";
+import { Order } from "@/integrations/supabase/types";
 
 export type OrderInsert = Omit<Order, "id" | "created_at" | "items" | "total"> & {
   items: {
@@ -21,21 +21,20 @@ export function useOrders(
     queryKey: ["orders", { page, perPage, searchTerm, dateRange, status }],
     queryFn: async () => {
       let query = supabase
-        .from("orders")
+        .from("sales")
         .select(
           `
           id,
           created_at,
           status,
           total,
-          clients (
+          customers (
             nome,
             telefone
           )
         `,
           { count: "exact" }
         )
-        .eq("ativo", true)
         .order("created_at", { ascending: false })
         .range((page - 1) * perPage, page * perPage - 1);
 
@@ -51,7 +50,7 @@ export function useOrders(
       }
 
       if (searchTerm) {
-        query = query.ilike("clients.nome", `%${searchTerm}%`);
+        query = query.ilike("customers.nome", `%${searchTerm}%`);
       }
 
       const { data, error, count } = await query;
@@ -60,8 +59,8 @@ export function useOrders(
       return {
         data: data.map((order: any) => ({
           ...order,
-          cliente_nome: order.clients.nome,
-          cliente_telefone: order.clients.telefone,
+          cliente_nome: order.customers.nome,
+          cliente_telefone: order.customers.telefone,
         })),
         count,
       };
@@ -76,7 +75,7 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: async (order: OrderInsert) => {
       const { error } = await supabase.rpc("create_order_with_items", {
-        p_cliente_id: order.cliente_id,
+        p_customer_id: order.customer_id,
         p_status: order.status,
         p_items: order.items,
       });

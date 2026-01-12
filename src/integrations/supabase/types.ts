@@ -807,3 +807,5 @@ export const Constants = {
     },
   },
 } as const
+
+export type Order = Tables<"sales"> & { items: Tables<"sale_items">[] };
