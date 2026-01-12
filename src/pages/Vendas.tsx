@@ -4,33 +4,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { Order, useOrders } from "@/hooks/useOrders";
-import { OrderTable } from "@/components/pedidos/OrderTable";
-import { OrderFormDialog } from "@/components/pedidos/OrderFormDialog";
+import { Sale, useSales } from "@/hooks/useSales";
+import { SaleTable } from "@/components/sales/SaleTable";
+import { SaleFormDialog } from "@/components/sales/SaleFormDialog";
 import { StatCard } from "@/components/shared/StatCard";
 import { Search, Plus, ListOrdered, PackageCheck, PackageX } from "lucide-react";
 
-export default function Pedidos() {
-  const [filters, setFilters] = useState<any>({ searchTerm: "", status: "all", dateRange: null });
-  const { data: orders, isLoading } = useOrders(filters);
+export default function Vendas() {
+  const [filters, setFilters] = useState<any>({ page: 1, perPage: 10, searchTerm: "", status: "all", dateRange: null });
+  const { data: salesData, isLoading } = useSales(filters);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
   const handleFilterChange = (key: string, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => ({ ...prev, [key]: value, page: 1 })); // Reset page on filter change
   };
 
-  const handleEdit = (order: Order | null) => {
-    setEditingOrder(order);
+  const handleEdit = (sale: Sale | null) => {
+    setEditingSale(sale);
     setIsFormOpen(true);
   }
 
+  const sales = salesData?.data || [];
+  const totalSales = salesData?.count || 0;
+
+  const completedSales = sales.filter(s => s.status === 'quitado').length;
+  const canceledSales = sales.filter(s => s.canceled_at !== null).length;
+
   return (
-    <MainLayout title="Pedidos de Venda" subtitle="Central de gerenciamento de pedidos">
+    <MainLayout title="Vendas" subtitle="Central de gerenciamento de vendas">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <StatCard title="Pedidos Totais" value={orders?.length || 0} icon={ListOrdered} />
-        <StatCard title="Pedidos Concluídos" value={orders?.filter(o => o.status === 'completed').length || 0} icon={PackageCheck} color="bg-green-500" />
-        <StatCard title="Pedidos Cancelados" value={orders?.filter(o => o.status === 'cancelled').length || 0} icon={PackageX} color="bg-red-500" />
+        <StatCard title="Vendas Totais" value={totalSales} icon={ListOrdered} />
+        <StatCard title="Vendas Concluídas" value={completedSales} icon={PackageCheck} color="bg-green-500" />
+        <StatCard title="Vendas Canceladas" value={canceledSales} icon={PackageX} color="bg-red-500" />
       </div>
 
       <div className="flex flex-wrap items-center gap-4 mb-6">
@@ -44,24 +50,32 @@ export default function Pedidos() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os Status</SelectItem>
-            <SelectItem value="pending">Pendente</SelectItem>
-            <SelectItem value="processing">Processando</SelectItem>
-            <SelectItem value="completed">Concluído</SelectItem>
-            <SelectItem value="cancelled">Cancelado</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="parcial">Parcial</SelectItem>
+            <SelectItem value="quitado">Quitado</SelectItem>
+            <SelectItem value="atrasado">Atrasado</SelectItem>
           </SelectContent>
         </Select>
         <DateRangePicker onUpdate={({ range }) => handleFilterChange('dateRange', range)} />
         <Button onClick={() => handleEdit(null)} className="w-full md:w-auto">
           <Plus className="h-4 w-4 mr-2" />
-          Novo Pedido
+          Nova Venda
         </Button>
       </div>
 
-      <OrderTable orders={orders} isLoading={isLoading} onEdit={handleEdit} />
+      <SaleTable 
+        sales={sales} 
+        isLoading={isLoading} 
+        onEdit={handleEdit} 
+        page={filters.page}
+        perPage={filters.perPage}
+        count={totalSales}
+        onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
+      />
 
       {isFormOpen && (
-        <OrderFormDialog 
-          order={editingOrder} 
+        <SaleFormDialog 
+          sale={editingSale} 
           open={isFormOpen} 
           onOpenChange={setIsFormOpen} 
         />

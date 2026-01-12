@@ -15,7 +15,7 @@ import ProductHistory from "./pages/ProductHistory";
 import Financeiro from "./pages/Financeiro";
 import Clientes from "./pages/Clientes";
 import Fornecedores from "./pages/Fornecedores";
-import Pedidos from "./pages/Pedidos";
+import Vendas from "./pages/Vendas";
 import Relatorios from "./pages/Relatorios";
 import Usuarios from "./pages/Usuarios";
 import Configuracoes from "./pages/Configuracoes";
@@ -107,10 +107,10 @@ const App = () => (
               }
             />
             <Route
-              path="/pedidos"
+              path="/vendas"
               element={
                 <ProtectedRoute>
-                  <Pedidos />
+                  <Vendas />
                 </ProtectedRoute>
               }
             />

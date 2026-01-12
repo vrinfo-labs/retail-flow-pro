@@ -1,15 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabaseClient';
 
-export function useSale(id: string) {
+export function useSale(id: string | undefined) {
   return useQuery({
     queryKey: ['sale', id],
     queryFn: async () => {
+      if (!id) return null;
+
       const { data, error } = await supabase
         .from('sales')
         .select(`
           *,
-          sale_items (*)
+          customers (*),
+          profiles (*),
+          sale_items (*, products (*))
         `)
         .eq('id', id)
         .single();
@@ -17,5 +21,6 @@ export function useSale(id: string) {
       if (error) throw error;
       return data;
     },
+    enabled: !!id, // Only run the query if an ID is provided
   });
 }

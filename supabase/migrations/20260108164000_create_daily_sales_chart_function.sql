@@ -9,9 +9,9 @@ begin
   )
   select
     to_char(d.day, 'YYYY-MM-DD') as date,
-    coalesce(sum(o.total_amount), 0) as sales
+    coalesce(sum(s.total), 0) as sales
   from all_days d
-  left join public.orders o on o.created_at::date = d.day
+  left join public.sales s on s.created_at::date = d.day
   group by d.day
   order by d.day;
 end;$$;

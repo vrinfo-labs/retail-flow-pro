@@ -60,9 +60,9 @@ const menuItems = [
     path: "/fornecedores",
   },
   {
-    title: "Pedidos",
+    title: "Vendas",
     icon: Package,
-    path: "/pedidos",
+    path: "/vendas",
   },
   {
     title: "Relatórios",
