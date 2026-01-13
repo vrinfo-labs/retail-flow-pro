@@ -7,7 +7,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import PDV from "./pages/PDV";
 import Caixas from "./pages/Caixas";
 import Estoque from "./pages/Estoque";
 import Financeiro from "./pages/Financeiro";
@@ -38,14 +37,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Index />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/pdv"
-              element={
-                <ProtectedRoute>
-                  <PDV />
                 </ProtectedRoute>
               }
             />

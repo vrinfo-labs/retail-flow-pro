@@ -25,11 +25,6 @@ const menuItems = [
     path: "/",
   },
   {
-    title: "PDV",
-    icon: ShoppingCart,
-    path: "/pdv",
-  },
-  {
     title: "Caixas",
     icon: Monitor,
     path: "/caixas",

@@ -8,6 +8,7 @@ export interface Product {
   codigo_barras: string | null;
   nome: string;
   descricao: string | null;
+  supplier_id: string;
   categoria_id: string | null;
   preco_custo: number;
   preco_venda: number;
@@ -17,6 +18,7 @@ export interface Product {
   ativo: boolean | null;
   imagem_url: string | null;
   categories?: { nome: string } | null;
+  suppliers?: { nome_fantasia: string } | null;
 }
 
 export interface ProductInsert {
@@ -24,6 +26,7 @@ export interface ProductInsert {
   codigo_barras?: string;
   nome: string;
   descricao?: string;
+  supplier_id: string;
   categoria_id?: string;
   preco_custo: number;
   preco_venda: number;
@@ -38,7 +41,7 @@ export function useProducts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, categories(nome)")
+        .select("*, categories(nome), suppliers(nome_fantasia)")
         .eq("ativo", true)
         .order("nome");
 
